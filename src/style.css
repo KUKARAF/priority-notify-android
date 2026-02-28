@@ -1,0 +1,541 @@
+/* ── Reset & Base ──────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg: #0f1115;
+  --surface: #1a1d23;
+  --surface-hover: #22252d;
+  --border: #2a2d35;
+  --text: #e4e4e7;
+  --text-secondary: #8b8d94;
+  --primary: #6366f1;
+  --primary-hover: #818cf8;
+  --danger: #ef4444;
+  --danger-hover: #f87171;
+
+  --priority-low: #6b7280;
+  --priority-medium: #3b82f6;
+  --priority-high: #f97316;
+  --priority-critical: #ef4444;
+
+  --radius: 10px;
+  --radius-sm: 6px;
+
+  /* Safe area for Android notch/nav */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html, body {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-tap-highlight-color: transparent;
+  overflow: hidden;
+}
+
+/* ── Views ─────────────────────────────────────────────── */
+#app {
+  height: 100%;
+  position: relative;
+}
+
+.view {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* ── Setup View ────────────────────────────────────────── */
+.setup-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 24px;
+  padding-top: calc(24px + var(--safe-top));
+  gap: 16px;
+  max-width: 400px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.setup-header {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  background: var(--primary);
+  color: white;
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.setup-header h1 {
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.subtitle {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+/* ── Forms ─────────────────────────────────────────────── */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+input[type="url"],
+input[type="password"],
+input[type="text"] {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  color: var(--text);
+  font-size: 15px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+input:focus {
+  border-color: var(--primary);
+}
+
+select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+}
+
+/* ── Buttons ───────────────────────────────────────────── */
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.btn:active {
+  opacity: 0.8;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: white;
+}
+
+.btn-primary:hover {
+  background: var(--primary-hover);
+}
+
+.btn-secondary {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.btn-secondary:hover {
+  background: var(--surface-hover);
+}
+
+.btn-danger {
+  background: var(--danger);
+  color: white;
+}
+
+.btn-danger:hover {
+  background: var(--danger-hover);
+}
+
+.btn-icon {
+  font-size: 18px;
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 22px;
+  padding: 8px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  line-height: 1;
+}
+
+.icon-btn:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+/* ── Error & Loading ───────────────────────────────────── */
+.error-msg {
+  color: var(--danger);
+  font-size: 14px;
+  text-align: center;
+  padding: 8px;
+  background: rgba(239, 68, 68, 0.1);
+  border-radius: var(--radius-sm);
+}
+
+.loading {
+  text-align: center;
+  color: var(--text-secondary);
+  padding: 16px;
+  font-size: 14px;
+}
+
+/* ── App Header ────────────────────────────────────────── */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  padding-top: calc(12px + var(--safe-top));
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  min-height: 56px;
+}
+
+.app-header h1 {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── SSE Status Indicator ──────────────────────────────── */
+.sse-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.sse-dot.connected {
+  background: #22c55e;
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.5);
+}
+
+.sse-dot.reconnecting {
+  background: #f59e0b;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.sse-dot.polling {
+  background: #f59e0b;
+}
+
+.sse-dot.disconnected {
+  background: #6b7280;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* ── Filter Bar ────────────────────────────────────────── */
+.filter-bar {
+  display: flex;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.filter-bar select {
+  flex: 1;
+}
+
+/* ── Pull to Refresh ───────────────────────────────────── */
+.pull-indicator {
+  text-align: center;
+  padding: 12px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+/* ── Notification List ─────────────────────────────────── */
+.notification-list {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: var(--safe-bottom);
+}
+
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: var(--text-secondary);
+}
+
+/* ── Notification Card ─────────────────────────────────── */
+.notif-card {
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.notif-card:active {
+  background: var(--surface-hover);
+}
+
+.notif-card.read {
+  opacity: 0.6;
+}
+
+.notif-priority-bar {
+  width: 4px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  align-self: stretch;
+}
+
+.notif-priority-bar.low { background: var(--priority-low); }
+.notif-priority-bar.medium { background: var(--priority-medium); }
+.notif-priority-bar.high { background: var(--priority-high); }
+.notif-priority-bar.critical { background: var(--priority-critical); }
+
+.notif-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.notif-title {
+  font-weight: 500;
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notif-message {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notif-meta {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.notif-source {
+  background: var(--surface-hover);
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+.notif-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.notif-mark-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 18px;
+  padding: 4px;
+  cursor: pointer;
+  border-radius: 4px;
+  line-height: 1;
+}
+
+.notif-mark-btn:hover {
+  color: var(--primary);
+  background: rgba(99, 102, 241, 0.1);
+}
+
+/* ── Priority Badge ────────────────────────────────────── */
+.priority-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.priority-badge.low { background: rgba(107, 114, 128, 0.2); color: var(--priority-low); }
+.priority-badge.medium { background: rgba(59, 130, 246, 0.2); color: var(--priority-medium); }
+.priority-badge.high { background: rgba(249, 115, 22, 0.2); color: var(--priority-high); }
+.priority-badge.critical { background: rgba(239, 68, 68, 0.2); color: var(--priority-critical); }
+
+/* ── Detail Modal ──────────────────────────────────────── */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: flex-end;
+  z-index: 100;
+}
+
+.modal-content {
+  background: var(--surface);
+  border-radius: var(--radius) var(--radius) 0 0;
+  padding: 20px;
+  padding-bottom: calc(20px + var(--safe-bottom));
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.modal-content h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.detail-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+
+.detail-body {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin-bottom: 20px;
+  min-height: 40px;
+}
+
+.detail-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.detail-actions .btn {
+  flex: 1;
+}
+
+/* ── Settings ──────────────────────────────────────────── */
+.settings-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  padding-bottom: calc(16px + var(--safe-bottom));
+}
+
+.settings-section {
+  margin-bottom: 24px;
+}
+
+.settings-section h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+}
+
+.setting-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.setting-item label {
+  font-size: 15px;
+}
+
+.setting-value {
+  color: var(--text-secondary);
+  font-size: 14px;
+  max-width: 200px;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--primary);
+}
+
+.settings-section .btn {
+  width: 100%;
+  margin-top: 8px;
+}

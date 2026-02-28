@@ -1,0 +1,425 @@
+openapi: 3.1.0
+info:
+  title: priority-notify
+  description: |
+    Self-hosted notification server API. Clients authenticate via Bearer token
+    (created through the web UI) and consume notifications via REST + SSE.
+  version: 0.1.0
+
+servers:
+  - url: http://localhost:8000
+    description: Local development
+  - url: https://notifications.osmosis.page
+    description: Production
+
+security:
+  - BearerToken: []
+
+tags:
+  - name: notifications
+    description: Create, list, update, delete notifications
+  - name: tokens
+    description: Client token management (session auth only, used from web UI)
+  - name: auth
+    description: Authentication and user info
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      operationId: health
+      security: []
+      responses:
+        "200":
+          description: Server is running
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  /api/me:
+    get:
+      tags: [auth]
+      summary: Get current user info
+      operationId: getMe
+      description: Returns the authenticated user's profile. Accepts session cookie or Bearer token.
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/notifications/:
+    get:
+      tags: [notifications]
+      summary: List notifications
+      operationId: listNotifications
+      description: |
+        Returns paginated notifications for the authenticated user.
+        Supports filtering by status, priority, source, and time.
+      parameters:
+        - name: since
+          in: query
+          description: Only return notifications created after this timestamp
+          schema:
+            type: string
+            format: date-time
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/Status"
+        - name: priority
+          in: query
+          schema:
+            $ref: "#/components/schemas/Priority"
+        - name: source
+          in: query
+          description: Filter by source string (e.g. "monitoring", "ci")
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        "200":
+          description: Paginated notification list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedNotificationResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    post:
+      tags: [notifications]
+      summary: Create notification
+      operationId: createNotification
+      description: |
+        Create a new notification for the token's user. This is the primary
+        ingestion endpoint — called by scripts, monitoring, CI, etc.
+        Requires Bearer token auth (not session).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificationCreate"
+            examples:
+              monitoring:
+                summary: Monitoring alert
+                value:
+                  title: "Server disk full"
+                  message: "Disk usage on web-01 is at 95%"
+                  priority: critical
+                  source: monitoring
+              ci:
+                summary: CI build failure
+                value:
+                  title: "Build failed: main"
+                  message: "Tests failed in job deploy-prod"
+                  priority: high
+                  source: ci
+              simple:
+                summary: Simple notification
+                value:
+                  title: "Backup completed"
+      responses:
+        "201":
+          description: Notification created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/notifications/stream:
+    get:
+      tags: [notifications]
+      summary: SSE notification stream
+      operationId: streamNotifications
+      description: |
+        Server-Sent Events stream for real-time notifications. Holds the
+        connection open and pushes events as they occur.
+
+        **Event types:**
+        - `notification` — new notification created (data is full NotificationResponse JSON)
+        - `status_change` — notification status updated (data is `{"id": "...", "status": "read"}`)
+        - `ping` — keepalive sent every 30s
+
+        **Reconnection:** The client should use `EventSource` or equivalent with
+        automatic reconnection. The server sends periodic pings to detect stale connections.
+      responses:
+        "200":
+          description: SSE event stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: |
+                  Stream of server-sent events. Each event has the format:
+                  ```
+                  event: notification
+                  data: {"id": "...", "title": "...", ...}
+
+                  event: status_change
+                  data: {"id": "...", "status": "read"}
+
+                  event: ping
+                  data:
+                  ```
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/notifications/{notification_id}:
+    get:
+      tags: [notifications]
+      summary: Get single notification
+      operationId: getNotification
+      parameters:
+        - $ref: "#/components/parameters/NotificationId"
+      responses:
+        "200":
+          description: Notification details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    patch:
+      tags: [notifications]
+      summary: Update notification status
+      operationId: updateNotification
+      description: |
+        Update the status of a notification (e.g. mark as read, archive).
+        When status is set to "read", the server automatically sets `read_at`.
+        Publishes a `status_change` event to the SSE stream.
+      parameters:
+        - $ref: "#/components/parameters/NotificationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificationUpdate"
+            examples:
+              markRead:
+                summary: Mark as read
+                value:
+                  status: read
+              archive:
+                summary: Archive
+                value:
+                  status: archived
+      responses:
+        "200":
+          description: Updated notification
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags: [notifications]
+      summary: Delete notification
+      operationId: deleteNotification
+      parameters:
+        - $ref: "#/components/parameters/NotificationId"
+      responses:
+        "204":
+          description: Notification deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+components:
+  securitySchemes:
+    BearerToken:
+      type: http
+      scheme: bearer
+      description: |
+        API token created via the web UI. Send as `Authorization: Bearer <token>`.
+        The server bcrypt-verifies the token against stored hashes.
+
+  parameters:
+    NotificationId:
+      name: notification_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: UUID of the notification
+
+  responses:
+    Unauthorized:
+      description: Not authenticated
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            detail: Not authenticated
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            detail: Notification not found
+
+  schemas:
+    Priority:
+      type: string
+      enum: [low, medium, high, critical]
+
+    Status:
+      type: string
+      enum: [unread, read, archived]
+
+    DeviceType:
+      type: string
+      enum: [android, gnome, other]
+
+    NotificationCreate:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+          maxLength: 500
+        message:
+          type: string
+          nullable: true
+        priority:
+          $ref: "#/components/schemas/Priority"
+          default: medium
+        source:
+          type: string
+          maxLength: 255
+          nullable: true
+        metadata:
+          type: object
+          additionalProperties: true
+          nullable: true
+
+    NotificationUpdate:
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/Status"
+
+    NotificationResponse:
+      type: object
+      required: [id, user_id, title, message, priority, status, source, created_at, read_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        message:
+          type: string
+          nullable: true
+        priority:
+          $ref: "#/components/schemas/Priority"
+        status:
+          $ref: "#/components/schemas/Status"
+        source:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        read_at:
+          type: string
+          format: date-time
+          nullable: true
+        metadata:
+          type: object
+          additionalProperties: true
+          nullable: true
+
+    PaginatedNotificationResponse:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/NotificationResponse"
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    UserResponse:
+      type: object
+      required: [id, email, name, created_at, last_login_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        last_login_at:
+          type: string
+          format: date-time
+
+    SSENotificationEvent:
+      description: "SSE event with type `notification` — data is a full NotificationResponse"
+      $ref: "#/components/schemas/NotificationResponse"
+
+    SSEStatusChangeEvent:
+      description: "SSE event with type `status_change`"
+      type: object
+      required: [id, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          $ref: "#/components/schemas/Status"
+
+    Error:
+      type: object
+      properties:
+        detail:
+          type: string

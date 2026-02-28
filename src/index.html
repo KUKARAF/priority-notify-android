@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Priority Notify</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- Setup View -->
+    <div id="setup-view" class="view">
+      <div class="setup-container">
+        <div class="setup-header">
+          <div class="logo">PN</div>
+          <h1>Priority Notify</h1>
+          <p class="subtitle">Connect to your notification server</p>
+        </div>
+
+        <div class="form-group">
+          <label for="server-url">Server URL</label>
+          <input
+            type="url"
+            id="server-url"
+            placeholder="https://notifications.example.com"
+            autocapitalize="none"
+            autocorrect="off"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="api-token">API Token</label>
+          <input
+            type="password"
+            id="api-token"
+            placeholder="Paste your token here"
+            autocapitalize="none"
+            autocorrect="off"
+          />
+        </div>
+
+        <button id="scan-qr-btn" class="btn btn-secondary">
+          <span class="btn-icon">&#9634;</span> Scan QR Code
+        </button>
+
+        <button id="connect-btn" class="btn btn-primary">Connect</button>
+
+        <div id="setup-error" class="error-msg hidden"></div>
+        <div id="setup-loading" class="loading hidden">Validating...</div>
+      </div>
+    </div>
+
+    <!-- Main View -->
+    <div id="main-view" class="view hidden">
+      <header class="app-header">
+        <h1>Notifications</h1>
+        <div class="header-actions">
+          <span id="sse-indicator" class="sse-dot disconnected" title="Disconnected"></span>
+          <button id="settings-btn" class="icon-btn" title="Settings">&#9881;</button>
+        </div>
+      </header>
+
+      <div class="filter-bar">
+        <select id="status-filter">
+          <option value="unread" selected>Unread</option>
+          <option value="">All</option>
+          <option value="read">Read</option>
+          <option value="archived">Archived</option>
+        </select>
+        <select id="priority-filter">
+          <option value="">All priorities</option>
+          <option value="critical">Critical</option>
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+      </div>
+
+      <div id="pull-indicator" class="pull-indicator hidden">Pull to refresh</div>
+
+      <div id="notification-list" class="notification-list">
+        <div id="empty-state" class="empty-state">
+          <p>No notifications</p>
+        </div>
+      </div>
+
+      <div id="list-loading" class="loading hidden">Loading...</div>
+    </div>
+
+    <!-- Notification Detail Modal -->
+    <div id="detail-modal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <span id="detail-priority" class="priority-badge"></span>
+          <button id="detail-close" class="icon-btn">&times;</button>
+        </div>
+        <h2 id="detail-title"></h2>
+        <div class="detail-meta">
+          <span id="detail-source"></span>
+          <span id="detail-time"></span>
+        </div>
+        <div id="detail-body" class="detail-body"></div>
+        <div class="detail-actions">
+          <button id="detail-toggle-read" class="btn btn-secondary">Mark as read</button>
+          <button id="detail-delete" class="btn btn-danger">Delete</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings View -->
+    <div id="settings-view" class="view hidden">
+      <header class="app-header">
+        <button id="settings-back" class="icon-btn">&larr;</button>
+        <h1>Settings</h1>
+        <div></div>
+      </header>
+
+      <div class="settings-list">
+        <div class="settings-section">
+          <h3>Connection</h3>
+          <div class="setting-item">
+            <label>Server URL</label>
+            <span id="settings-server-url" class="setting-value">—</span>
+          </div>
+          <div class="setting-item">
+            <label>Connected as</label>
+            <span id="settings-user" class="setting-value">—</span>
+          </div>
+          <button id="settings-reconnect" class="btn btn-secondary">Re-enter Token</button>
+        </div>
+
+        <div class="settings-section">
+          <h3>Notifications</h3>
+          <div class="setting-item">
+            <label for="settings-system-notif">System notifications</label>
+            <input type="checkbox" id="settings-system-notif" checked />
+          </div>
+          <div class="setting-item">
+            <label for="settings-notif-threshold">Notify threshold</label>
+            <select id="settings-notif-threshold">
+              <option value="high" selected>High + Critical</option>
+              <option value="all">All priorities</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h3>Background</h3>
+          <div class="setting-item">
+            <label for="settings-background">Keep alive in background</label>
+            <input type="checkbox" id="settings-background" checked />
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <button id="settings-logout" class="btn btn-danger">Disconnect &amp; Clear Data</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="main.js"></script>
+</body>
+</html>
