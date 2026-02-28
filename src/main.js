@@ -44,6 +44,7 @@ const els = {
   settingsReconnect: $("#settings-reconnect"),
   settingsSystemNotif: $("#settings-system-notif"),
   settingsNotifThreshold: $("#settings-notif-threshold"),
+  settingsReminder: $("#settings-reminder"),
   settingsBackground: $("#settings-background"),
   settingsLogout: $("#settings-logout"),
 };
@@ -249,27 +250,80 @@ async function enterMainView() {
   } catch (e) {
     console.error("SSE start failed:", e);
   }
+
+  // Start reminder loop
+  try {
+    await invoke("start_reminder");
+  } catch (e) {
+    console.error("Reminder start failed:", e);
+  }
 }
 
 // ── QR Scanner ─────────────────────────────────────────
 async function scanQr() {
+  const btn = els.scanQrBtn;
+  const originalText = btn.innerHTML;
+
   try {
-    // Try using the barcode scanner plugin
-    const result = await invoke("plugin:barcode-scanner|scan", {});
+    btn.disabled = true;
+    btn.innerHTML = '<span class="btn-icon">&#9634;</span> Checking camera...';
+
+    // Check current camera permission state
+    const permStatus = await invoke("plugin:barcode-scanner|check_permissions");
+    let permission = permStatus.camera;
+
+    // Request permission if not yet granted
+    if (permission !== "granted") {
+      if (permission === "denied") {
+        showError(
+          "Camera permission was denied. Please enable it in app settings."
+        );
+        try {
+          await invoke("plugin:barcode-scanner|open_app_settings");
+        } catch {
+          // open_app_settings may not be available on all platforms
+        }
+        return;
+      }
+
+      const reqResult = await invoke(
+        "plugin:barcode-scanner|request_permissions"
+      );
+      permission = reqResult.camera;
+
+      if (permission !== "granted") {
+        showError("Camera permission is required to scan QR codes.");
+        return;
+      }
+    }
+
+    // Perform the scan
+    btn.innerHTML = '<span class="btn-icon">&#9634;</span> Scanning...';
+    const result = await invoke("plugin:barcode-scanner|scan", {
+      formats: ["QR_CODE"],
+      windowed: false,
+    });
+
     if (result && result.content) {
-      // Expect the QR to contain the token, or a URL with token
       try {
         const data = JSON.parse(result.content);
         if (data.server_url) els.serverUrl.value = data.server_url;
         if (data.token) els.apiToken.value = data.token;
       } catch {
-        // If not JSON, treat as plain token
+        // Not JSON — treat as plain token value
         els.apiToken.value = result.content;
       }
     }
   } catch (e) {
     console.error("QR scan failed:", e);
-    // Silently fail — user can paste manually
+    const msg =
+      typeof e === "string"
+        ? e
+        : "QR scan failed. Please paste your token manually.";
+    showError(msg);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalText;
   }
 }
 
@@ -354,12 +408,14 @@ function setupListeners() {
   // Settings: reconnect
   els.settingsReconnect.addEventListener("click", async () => {
     await invoke("stop_sse");
+    await invoke("stop_reminder");
     showView("setup");
   });
 
   // Settings: logout
   els.settingsLogout.addEventListener("click", async () => {
     await invoke("stop_sse");
+    await invoke("stop_reminder");
     await invoke("save_setting", { key: "server_url", value: "" });
     await invoke("save_setting", { key: "token", value: "" });
     els.serverUrl.value = "";
@@ -379,6 +435,11 @@ function setupListeners() {
 
   els.settingsNotifThreshold.addEventListener("change", (e) => {
     invoke("save_setting", { key: "notif_threshold", value: e.target.value });
+  });
+
+  els.settingsReminder.addEventListener("change", (e) => {
+    const minutes = parseInt(e.target.value, 10);
+    invoke("update_reminder_interval", { minutes });
   });
 
   els.settingsBackground.addEventListener("change", (e) => {
@@ -465,6 +526,11 @@ async function init() {
 
     const bg = await invoke("load_setting", { key: "background" });
     if (bg !== null) els.settingsBackground.checked = bg !== "false";
+
+    const reminderInterval = await invoke("load_setting", {
+      key: "reminder_interval",
+    });
+    if (reminderInterval !== null) els.settingsReminder.value = reminderInterval;
   } catch {
     // Defaults are fine
   }
