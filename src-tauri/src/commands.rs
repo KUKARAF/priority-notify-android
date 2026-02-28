@@ -2,7 +2,7 @@ use crate::api::ApiClient;
 use crate::models::*;
 use crate::sse;
 use std::sync::Mutex;
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, State};
 use tokio::task::JoinHandle;
 
 /// Shared application state managed by Tauri.
