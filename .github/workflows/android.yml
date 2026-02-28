@@ -61,9 +61,9 @@ jobs:
           fi
           ${ANDROID_HOME}/build-tools/$(ls ${ANDROID_HOME}/build-tools/ | tail -1)/apksigner sign \
             --ks keystore.jks \
-            --ks-pass pass:${{ secrets.ANDROID_KEYSTORE_PASSWORD }} \
-            --ks-key-alias ${{ secrets.ANDROID_KEY_ALIAS }} \
-            --key-pass pass:${{ secrets.ANDROID_KEY_PASSWORD }} \
+            --ks-pass pass:${{ secrets.ANDROID_SIGNING_STORE_PASSWORD }} \
+            --ks-key-alias ${{ secrets.ANDROID_SIGNING_KEY_ALIAS }} \
+            --key-pass pass:${{ secrets.ANDROID_SIGNING_KEY_PASSWORD }} \
             "$APK_PATH"
           rm keystore.jks
 
