@@ -257,6 +257,25 @@ async function enterMainView() {
   } catch (e) {
     console.error("Reminder start failed:", e);
   }
+
+  // Schedule background notification check
+  try {
+    const bgEnabled = await invoke("load_setting", { key: "background" });
+    if (bgEnabled !== "false") {
+      const threshold =
+        (await invoke("load_setting", { key: "notif_threshold" })) || "high";
+      const sysNotif = await invoke("load_setting", { key: "system_notif" });
+      await invoke("plugin:background-check|schedule", {
+        intervalMinutes: 15,
+        serverUrl: els.serverUrl.value.trim(),
+        token: els.apiToken.value.trim(),
+        notifThreshold: threshold,
+        systemNotif: sysNotif !== "false",
+      });
+    }
+  } catch (e) {
+    console.error("Background check schedule failed:", e);
+  }
 }
 
 // ── QR Scanner ─────────────────────────────────────────
@@ -409,6 +428,11 @@ function setupListeners() {
   els.settingsReconnect.addEventListener("click", async () => {
     await invoke("stop_sse");
     await invoke("stop_reminder");
+    try {
+      await invoke("plugin:background-check|cancel");
+    } catch (e) {
+      console.error("Background check cancel failed:", e);
+    }
     showView("setup");
   });
 
@@ -416,6 +440,11 @@ function setupListeners() {
   els.settingsLogout.addEventListener("click", async () => {
     await invoke("stop_sse");
     await invoke("stop_reminder");
+    try {
+      await invoke("plugin:background-check|cancel");
+    } catch (e) {
+      console.error("Background check cancel failed:", e);
+    }
     await invoke("save_setting", { key: "server_url", value: "" });
     await invoke("save_setting", { key: "token", value: "" });
     els.serverUrl.value = "";
@@ -431,10 +460,16 @@ function setupListeners() {
       key: "system_notif",
       value: e.target.checked ? "true" : "false",
     });
+    invoke("plugin:background-check|update_settings", {
+      systemNotif: e.target.checked,
+    }).catch(() => {});
   });
 
   els.settingsNotifThreshold.addEventListener("change", (e) => {
     invoke("save_setting", { key: "notif_threshold", value: e.target.value });
+    invoke("plugin:background-check|update_settings", {
+      notifThreshold: e.target.value,
+    }).catch(() => {});
   });
 
   els.settingsReminder.addEventListener("change", (e) => {
@@ -442,11 +477,29 @@ function setupListeners() {
     invoke("update_reminder_interval", { minutes });
   });
 
-  els.settingsBackground.addEventListener("change", (e) => {
+  els.settingsBackground.addEventListener("change", async (e) => {
     invoke("save_setting", {
       key: "background",
       value: e.target.checked ? "true" : "false",
     });
+    try {
+      if (e.target.checked) {
+        const threshold =
+          (await invoke("load_setting", { key: "notif_threshold" })) || "high";
+        const sysNotif = await invoke("load_setting", { key: "system_notif" });
+        await invoke("plugin:background-check|schedule", {
+          intervalMinutes: 15,
+          serverUrl: els.serverUrl.value.trim() || els.settingsServerUrl.textContent.trim(),
+          token: els.apiToken.value.trim(),
+          notifThreshold: threshold,
+          systemNotif: sysNotif !== "false",
+        });
+      } else {
+        await invoke("plugin:background-check|cancel");
+      }
+    } catch (e2) {
+      console.error("Background check toggle failed:", e2);
+    }
   });
 
   // Enter key on token field

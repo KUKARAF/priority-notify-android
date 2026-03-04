@@ -16,6 +16,7 @@ pub fn run() {
     #[cfg(mobile)]
     {
         builder = builder.plugin(tauri_plugin_barcode_scanner::init());
+        builder = builder.plugin(tauri_plugin_background_check::init());
     }
 
     builder
