@@ -1,4 +1,4 @@
-use crate::models::{Notification, Priority, StatusChangeEvent};
+use crate::models::{Notification, StatusChangeEvent};
 use reqwest::Client;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter};
@@ -90,10 +90,6 @@ fn dispatch_event(event_type: &str, data: &str, app: &AppHandle) {
     match event_type {
         "notification" => {
             if let Ok(notif) = serde_json::from_str::<Notification>(data) {
-                // Fire Android system notification for high/critical
-                if matches!(notif.priority, Priority::High | Priority::Critical) {
-                    fire_system_notification(&notif, app);
-                }
                 app.emit("new-notification", &notif).ok();
             }
         }
@@ -106,20 +102,6 @@ fn dispatch_event(event_type: &str, data: &str, app: &AppHandle) {
             // keepalive, ignore
         }
         _ => {}
-    }
-}
-
-/// Fire an Android system notification via tauri-plugin-notification.
-fn fire_system_notification(notif: &Notification, app: &AppHandle) {
-    use tauri_plugin_notification::NotificationExt;
-
-    let mut builder = app.notification().builder();
-    builder = builder
-        .title(&notif.title)
-        .body(notif.message.as_deref().unwrap_or(""));
-
-    if let Err(e) = builder.show() {
-        log::error!("Failed to show system notification: {e}");
     }
 }
 
@@ -153,9 +135,6 @@ async fn poll_fallback(
         .await
     {
         for notif in &page.items {
-            if matches!(notif.priority, Priority::High | Priority::Critical) {
-                fire_system_notification(notif, app);
-            }
             app.emit("new-notification", notif).ok();
         }
         // Track the most recent timestamp

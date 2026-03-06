@@ -1,3 +1,0 @@
-[default]
-description = "Default permissions for background-check plugin"
-permissions = ["allow-schedule", "allow-cancel", "allow-update-settings"]

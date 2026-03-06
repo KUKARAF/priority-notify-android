@@ -4,16 +4,12 @@
   "windows": ["*"],
   "permissions": [
     "core:default",
-    "notification:default",
-    "notification:allow-notify",
-    "notification:allow-request-permission",
-    "notification:allow-is-permission-granted",
     "store:default",
     "barcode-scanner:default",
     "barcode-scanner:allow-scan",
     "barcode-scanner:allow-cancel",
     "barcode-scanner:allow-check-permissions",
     "barcode-scanner:allow-request-permissions",
-    "background-check:default"
+    "unifiedpush:default"
   ]
 }

@@ -22,6 +22,8 @@ tags:
     description: Client token management (session auth only, used from web UI)
   - name: auth
     description: Authentication and user info
+  - name: push
+    description: Push notification endpoint registration
 
 paths:
   /health:
@@ -147,6 +149,44 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/NotificationResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/push/register:
+    post:
+      tags: [push]
+      summary: Register push endpoint
+      operationId: registerPushEndpoint
+      description: |
+        Register a UnifiedPush endpoint URL for the authenticated user.
+        The server will POST notification JSON to this endpoint when
+        new notifications are created. Replaces any previously registered
+        endpoint for this user/device.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [endpoint]
+              properties:
+                endpoint:
+                  type: string
+                  format: uri
+                  description: The UnifiedPush endpoint URL provided by the distributor app
+              example:
+                endpoint: "https://ntfy.sh/upABCDEF1234"
+      responses:
+        "200":
+          description: Endpoint registered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: registered
         "401":
           $ref: "#/components/responses/Unauthorized"
 

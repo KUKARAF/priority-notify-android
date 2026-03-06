@@ -44,9 +44,14 @@ const els = {
   settingsReconnect: $("#settings-reconnect"),
   settingsSystemNotif: $("#settings-system-notif"),
   settingsNotifThreshold: $("#settings-notif-threshold"),
-  settingsReminder: $("#settings-reminder"),
-  settingsBackground: $("#settings-background"),
   settingsLogout: $("#settings-logout"),
+
+  pushStatus: $("#push-status"),
+  pushDistributor: $("#push-distributor"),
+  pushDistributorRow: $("#push-distributor-row"),
+  pushRegisterBtn: $("#push-register-btn"),
+  pushUnregisterBtn: $("#push-unregister-btn"),
+  pushHint: $("#push-hint"),
 };
 
 // ── App State ──────────────────────────────────────────
@@ -202,6 +207,103 @@ function closeDetail() {
   els.detailModal.classList.add("hidden");
 }
 
+// ── UnifiedPush ─────────────────────────────────────────
+async function checkPushStatus() {
+  try {
+    const status = await invoke("plugin:unifiedpush|get_push_status");
+
+    els.pushHint.classList.add("hidden");
+    els.pushRegisterBtn.classList.add("hidden");
+    els.pushUnregisterBtn.classList.add("hidden");
+
+    if (!status.hasDistributor) {
+      els.pushStatus.textContent = "No distributor";
+      els.pushDistributor.textContent = "—";
+      els.pushHint.classList.remove("hidden");
+      return;
+    }
+
+    els.pushDistributor.textContent = status.distributor || `${status.distributorCount} available`;
+
+    if (status.status === "active") {
+      els.pushStatus.textContent = "Active";
+      els.pushUnregisterBtn.classList.remove("hidden");
+    } else if (status.status === "registering" || status.status === "endpoint_received") {
+      els.pushStatus.textContent = "Registering...";
+      els.pushUnregisterBtn.classList.remove("hidden");
+    } else if (status.status === "failed") {
+      els.pushStatus.textContent = "Failed";
+      els.pushRegisterBtn.classList.remove("hidden");
+    } else {
+      els.pushStatus.textContent = "Inactive";
+      els.pushRegisterBtn.classList.remove("hidden");
+    }
+  } catch (e) {
+    els.pushStatus.textContent = "Unavailable";
+    console.error("Push status check failed:", e);
+  }
+}
+
+async function registerPush() {
+  els.pushRegisterBtn.disabled = true;
+  els.pushStatus.textContent = "Registering...";
+
+  try {
+    // Save credentials so PushReceiver can use them
+    const threshold =
+      (await invoke("load_setting", { key: "notif_threshold" })) || "high";
+    const sysNotif = await invoke("load_setting", { key: "system_notif" });
+    await invoke("plugin:unifiedpush|save_credentials", {
+      serverUrl: els.serverUrl.value.trim(),
+      token: els.apiToken.value.trim(),
+      notifThreshold: threshold,
+      systemNotif: sysNotif !== "false",
+    });
+
+    await invoke("plugin:unifiedpush|register", { instance: "default" });
+
+    // Poll for endpoint to become available (PushReceiver sets it async)
+    let attempts = 0;
+    const pollInterval = setInterval(async () => {
+      attempts++;
+      try {
+        const status = await invoke("plugin:unifiedpush|get_push_status");
+        if (status.status === "active" && status.endpoint) {
+          clearInterval(pollInterval);
+          await checkPushStatus();
+        } else if (status.status === "failed") {
+          clearInterval(pollInterval);
+          await checkPushStatus();
+        }
+      } catch {
+        // ignore polling errors
+      }
+      if (attempts >= 30) {
+        clearInterval(pollInterval);
+        await checkPushStatus();
+      }
+    }, 1000);
+  } catch (e) {
+    console.error("Push registration failed:", e);
+    els.pushStatus.textContent = "Failed";
+    els.pushRegisterBtn.classList.remove("hidden");
+  } finally {
+    els.pushRegisterBtn.disabled = false;
+  }
+}
+
+async function unregisterPush() {
+  els.pushUnregisterBtn.disabled = true;
+  try {
+    await invoke("plugin:unifiedpush|unregister");
+    await checkPushStatus();
+  } catch (e) {
+    console.error("Push unregister failed:", e);
+  } finally {
+    els.pushUnregisterBtn.disabled = false;
+  }
+}
+
 // ── Setup / Connection ─────────────────────────────────
 async function connect() {
   const serverUrl = els.serverUrl.value.trim();
@@ -251,30 +353,20 @@ async function enterMainView() {
     console.error("SSE start failed:", e);
   }
 
-  // Start reminder loop
+  // Save credentials to UnifiedPush plugin and check status
   try {
-    await invoke("start_reminder");
+    const threshold =
+      (await invoke("load_setting", { key: "notif_threshold" })) || "high";
+    const sysNotif = await invoke("load_setting", { key: "system_notif" });
+    await invoke("plugin:unifiedpush|save_credentials", {
+      serverUrl: els.serverUrl.value.trim(),
+      token: els.apiToken.value.trim(),
+      notifThreshold: threshold,
+      systemNotif: sysNotif !== "false",
+    });
+    await checkPushStatus();
   } catch (e) {
-    console.error("Reminder start failed:", e);
-  }
-
-  // Schedule background notification check
-  try {
-    const bgEnabled = await invoke("load_setting", { key: "background" });
-    if (bgEnabled !== "false") {
-      const threshold =
-        (await invoke("load_setting", { key: "notif_threshold" })) || "high";
-      const sysNotif = await invoke("load_setting", { key: "system_notif" });
-      await invoke("plugin:background-check|schedule", {
-        intervalMinutes: 15,
-        serverUrl: els.serverUrl.value.trim(),
-        token: els.apiToken.value.trim(),
-        notifThreshold: threshold,
-        systemNotif: sysNotif !== "false",
-      });
-    }
-  } catch (e) {
-    console.error("Background check schedule failed:", e);
+    console.error("UnifiedPush setup failed:", e);
   }
 }
 
@@ -424,26 +516,23 @@ function setupListeners() {
   els.statusFilter.addEventListener("change", loadNotifications);
   els.priorityFilter.addEventListener("change", loadNotifications);
 
+  // Push register/unregister
+  els.pushRegisterBtn.addEventListener("click", registerPush);
+  els.pushUnregisterBtn.addEventListener("click", unregisterPush);
+
   // Settings: reconnect
   els.settingsReconnect.addEventListener("click", async () => {
     await invoke("stop_sse");
-    await invoke("stop_reminder");
-    try {
-      await invoke("plugin:background-check|cancel");
-    } catch (e) {
-      console.error("Background check cancel failed:", e);
-    }
     showView("setup");
   });
 
   // Settings: logout
   els.settingsLogout.addEventListener("click", async () => {
     await invoke("stop_sse");
-    await invoke("stop_reminder");
     try {
-      await invoke("plugin:background-check|cancel");
+      await invoke("plugin:unifiedpush|unregister");
     } catch (e) {
-      console.error("Background check cancel failed:", e);
+      console.error("UnifiedPush unregister failed:", e);
     }
     await invoke("save_setting", { key: "server_url", value: "" });
     await invoke("save_setting", { key: "token", value: "" });
@@ -460,46 +549,22 @@ function setupListeners() {
       key: "system_notif",
       value: e.target.checked ? "true" : "false",
     });
-    invoke("plugin:background-check|update_settings", {
+    invoke("plugin:unifiedpush|save_credentials", {
+      serverUrl: els.serverUrl.value.trim() || els.settingsServerUrl.textContent.trim(),
+      token: els.apiToken.value.trim(),
+      notifThreshold: els.settingsNotifThreshold.value,
       systemNotif: e.target.checked,
     }).catch(() => {});
   });
 
   els.settingsNotifThreshold.addEventListener("change", (e) => {
     invoke("save_setting", { key: "notif_threshold", value: e.target.value });
-    invoke("plugin:background-check|update_settings", {
+    invoke("plugin:unifiedpush|save_credentials", {
+      serverUrl: els.serverUrl.value.trim() || els.settingsServerUrl.textContent.trim(),
+      token: els.apiToken.value.trim(),
       notifThreshold: e.target.value,
+      systemNotif: els.settingsSystemNotif.checked,
     }).catch(() => {});
-  });
-
-  els.settingsReminder.addEventListener("change", (e) => {
-    const minutes = parseInt(e.target.value, 10);
-    invoke("update_reminder_interval", { minutes });
-  });
-
-  els.settingsBackground.addEventListener("change", async (e) => {
-    invoke("save_setting", {
-      key: "background",
-      value: e.target.checked ? "true" : "false",
-    });
-    try {
-      if (e.target.checked) {
-        const threshold =
-          (await invoke("load_setting", { key: "notif_threshold" })) || "high";
-        const sysNotif = await invoke("load_setting", { key: "system_notif" });
-        await invoke("plugin:background-check|schedule", {
-          intervalMinutes: 15,
-          serverUrl: els.serverUrl.value.trim() || els.settingsServerUrl.textContent.trim(),
-          token: els.apiToken.value.trim(),
-          notifThreshold: threshold,
-          systemNotif: sysNotif !== "false",
-        });
-      } else {
-        await invoke("plugin:background-check|cancel");
-      }
-    } catch (e2) {
-      console.error("Background check toggle failed:", e2);
-    }
   });
 
   // Enter key on token field
@@ -576,14 +641,6 @@ async function init() {
 
     const threshold = await invoke("load_setting", { key: "notif_threshold" });
     if (threshold) els.settingsNotifThreshold.value = threshold;
-
-    const bg = await invoke("load_setting", { key: "background" });
-    if (bg !== null) els.settingsBackground.checked = bg !== "false";
-
-    const reminderInterval = await invoke("load_setting", {
-      key: "reminder_interval",
-    });
-    if (reminderInterval !== null) els.settingsReminder.value = reminderInterval;
   } catch {
     // Defaults are fine
   }

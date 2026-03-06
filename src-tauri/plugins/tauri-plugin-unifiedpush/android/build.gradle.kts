@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "page.osmosis.backgroundcheck"
+    namespace = "page.osmosis.unifiedpush"
     compileSdk = 34
 
     defaultConfig {
@@ -27,6 +27,7 @@ android {
 
 dependencies {
     implementation(project(":tauri-android"))
-    implementation("androidx.work:work-runtime-ktx:2.9.1")
+    implementation("org.unifiedpush.android:connector:2.4.0")
     implementation("androidx.core:core-ktx:1.13.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 }

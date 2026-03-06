@@ -4,7 +4,7 @@ use tauri::{
 };
 
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
-    Builder::new("background-check")
+    Builder::new("unifiedpush")
         .setup(|_app, _api| {
             Ok(())
         })

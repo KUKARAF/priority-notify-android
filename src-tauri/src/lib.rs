@@ -1,7 +1,6 @@
 mod api;
 mod commands;
 mod models;
-mod reminder;
 mod sse;
 
 use commands::AppState;
@@ -10,13 +9,12 @@ use commands::AppState;
 pub fn run() {
     #[allow(unused_mut)]
     let mut builder = tauri::Builder::default()
-        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_store::Builder::default().build());
 
     #[cfg(mobile)]
     {
         builder = builder.plugin(tauri_plugin_barcode_scanner::init());
-        builder = builder.plugin(tauri_plugin_background_check::init());
+        builder = builder.plugin(tauri_plugin_unifiedpush::init());
     }
 
     builder
@@ -31,9 +29,6 @@ pub fn run() {
             commands::delete_notification,
             commands::start_sse,
             commands::stop_sse,
-            commands::start_reminder,
-            commands::stop_reminder,
-            commands::update_reminder_interval,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -142,26 +142,24 @@
               <option value="all">All priorities</option>
             </select>
           </div>
-          <div class="setting-item">
-            <label for="settings-reminder">Reminder interval</label>
-            <select id="settings-reminder">
-              <option value="0">Disabled</option>
-              <option value="5">5 minutes</option>
-              <option value="10">10 minutes</option>
-              <option value="15">15 minutes</option>
-              <option value="20" selected>20 minutes</option>
-              <option value="30">30 minutes</option>
-              <option value="60">60 minutes</option>
-            </select>
-          </div>
         </div>
 
         <div class="settings-section">
-          <h3>Background</h3>
+          <h3>Push Notifications</h3>
           <div class="setting-item">
-            <label for="settings-background">Keep alive in background</label>
-            <input type="checkbox" id="settings-background" checked />
+            <label>Status</label>
+            <span id="push-status" class="setting-value">Checking...</span>
           </div>
+          <div class="setting-item" id="push-distributor-row">
+            <label>Distributor</label>
+            <span id="push-distributor" class="setting-value">—</span>
+          </div>
+          <button id="push-register-btn" class="btn btn-primary hidden">Register for Push</button>
+          <button id="push-unregister-btn" class="btn btn-secondary hidden">Unregister Push</button>
+          <p id="push-hint" class="push-hint hidden">
+            No push distributor found. Install
+            <strong>Sunup</strong> from F-Droid to enable push notifications.
+          </p>
         </div>
 
         <div class="settings-section">

@@ -1,0 +1,9 @@
+[default]
+description = "Default permissions for unifiedpush plugin"
+permissions = [
+    "allow-get-distributors",
+    "allow-register",
+    "allow-unregister",
+    "allow-get-push-status",
+    "allow-save-credentials",
+]

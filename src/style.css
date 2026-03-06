@@ -539,3 +539,10 @@ input[type="checkbox"] {
   width: 100%;
   margin-top: 8px;
 }
+
+.push-hint {
+  font-size: 13px;
+  color: var(--text-secondary);
+  padding: 10px 0;
+  line-height: 1.5;
+}

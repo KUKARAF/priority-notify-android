@@ -1,6 +1,5 @@
 use crate::api::ApiClient;
 use crate::models::*;
-use crate::reminder;
 use crate::sse;
 use std::sync::Mutex;
 use tauri::{AppHandle, State};
@@ -11,7 +10,6 @@ pub struct AppState {
     pub base_url: Mutex<String>,
     pub token: Mutex<String>,
     pub sse_handle: Mutex<Option<JoinHandle<()>>>,
-    pub reminder_handle: Mutex<Option<JoinHandle<()>>>,
 }
 
 impl AppState {
@@ -20,7 +18,6 @@ impl AppState {
             base_url: Mutex::new(String::new()),
             token: Mutex::new(String::new()),
             sse_handle: Mutex::new(None),
-            reminder_handle: Mutex::new(None),
         }
     }
 
@@ -182,82 +179,6 @@ pub async fn stop_sse(state: State<'_, AppState>) -> Result<(), String> {
 
 fn stop_sse_inner(state: &AppState) {
     let mut handle = state.sse_handle.lock().unwrap();
-    if let Some(h) = handle.take() {
-        h.abort();
-    }
-}
-
-/// Start the reminder loop. Reads `reminder_interval` from the store (default 20 min).
-/// If interval is 0, the reminder is disabled.
-#[tauri::command]
-pub async fn start_reminder(
-    app: AppHandle,
-    state: State<'_, AppState>,
-) -> Result<(), String> {
-    stop_reminder_inner(&state);
-
-    let interval: u64 = load_from_store(&app, "reminder_interval")
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(20);
-
-    if interval == 0 {
-        return Ok(());
-    }
-
-    let base_url = state.base_url.lock().unwrap().clone();
-    let token = state.token.lock().unwrap().clone();
-
-    if base_url.is_empty() || token.is_empty() {
-        return Err("Not configured".to_string());
-    }
-
-    let handle = tokio::spawn(reminder::run_reminder_loop(
-        base_url, token, app, interval,
-    ));
-    *state.reminder_handle.lock().unwrap() = Some(handle);
-
-    Ok(())
-}
-
-/// Stop the reminder loop.
-#[tauri::command]
-pub async fn stop_reminder(state: State<'_, AppState>) -> Result<(), String> {
-    stop_reminder_inner(&state);
-    Ok(())
-}
-
-/// Update the reminder interval. Persists the setting and restarts the loop.
-#[tauri::command]
-pub async fn update_reminder_interval(
-    app: AppHandle,
-    state: State<'_, AppState>,
-    minutes: u64,
-) -> Result<(), String> {
-    save_to_store(&app, "reminder_interval", &minutes.to_string());
-
-    stop_reminder_inner(&state);
-
-    if minutes == 0 {
-        return Ok(());
-    }
-
-    let base_url = state.base_url.lock().unwrap().clone();
-    let token = state.token.lock().unwrap().clone();
-
-    if base_url.is_empty() || token.is_empty() {
-        return Ok(());
-    }
-
-    let handle = tokio::spawn(reminder::run_reminder_loop(
-        base_url, token, app, minutes,
-    ));
-    *state.reminder_handle.lock().unwrap() = Some(handle);
-
-    Ok(())
-}
-
-fn stop_reminder_inner(state: &AppState) {
-    let mut handle = state.reminder_handle.lock().unwrap();
     if let Some(h) = handle.take() {
         h.abort();
     }
