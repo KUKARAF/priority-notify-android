@@ -18,6 +18,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.unifiedpush.android.connector.FailedReason
 import org.unifiedpush.android.connector.MessagingReceiver
+import org.unifiedpush.android.connector.data.PushEndpoint
 import org.unifiedpush.android.connector.data.PushMessage
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -44,12 +45,12 @@ class PushReceiver : MessagingReceiver() {
         )
     }
 
-    override fun onNewEndpoint(context: Context, endpoint: String, instance: String) {
-        Log.d(TAG, "New endpoint received: $endpoint")
+    override fun onNewEndpoint(context: Context, endpoint: PushEndpoint, instance: String) {
+        Log.d(TAG, "New endpoint received: ${endpoint.url}")
 
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit()
-            .putString("endpoint", endpoint)
+            .putString("endpoint", endpoint.url)
             .putString("status", "endpoint_received")
             .apply()
 
@@ -60,7 +61,7 @@ class PushReceiver : MessagingReceiver() {
             val pendingResult = goAsync()
             CoroutineScope(Dispatchers.IO).launch {
                 try {
-                    registerEndpointWithServer(serverUrl, token, endpoint)
+                    registerEndpointWithServer(serverUrl, token, endpoint.url)
                     Log.d(TAG, "Endpoint registered with server")
                     prefs.edit().putString("status", "active").apply()
                 } catch (e: Exception) {
