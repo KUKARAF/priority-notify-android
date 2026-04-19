@@ -1,6 +1,6 @@
 plugins {
     id("com.android.library")
-    id("org.jetbrains.kotlin.android") version "2.1.0"
+    id("org.jetbrains.kotlin.android")
 }
 
 android {
@@ -27,7 +27,7 @@ android {
 
 dependencies {
     implementation(project(":tauri-android"))
-    implementation("org.unifiedpush.android:connector:3.3.2")
+    implementation("org.unifiedpush.android:connector:3.0.0")
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 }
