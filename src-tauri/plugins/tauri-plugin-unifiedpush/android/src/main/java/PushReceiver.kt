@@ -3,7 +3,9 @@ package page.osmosis.unifiedpush
 import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
@@ -183,13 +185,23 @@ class PushReceiver : MessagingReceiver() {
         priority: String
     ) {
         val notifManager = NotificationManagerCompat.from(context)
-        val iconRes = context.applicationInfo.icon
+        val iconRes = page.osmosis.unifiedpush.R.drawable.ic_notification
 
         val androidPriority = when (priority) {
             "critical" -> NotificationCompat.PRIORITY_MAX
             "high" -> NotificationCompat.PRIORITY_HIGH
             "medium" -> NotificationCompat.PRIORITY_DEFAULT
             else -> NotificationCompat.PRIORITY_LOW
+        }
+
+        val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)?.apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+        val pendingIntent = launchIntent?.let {
+            PendingIntent.getActivity(
+                context, 0, it,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
         }
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
@@ -199,9 +211,18 @@ class PushReceiver : MessagingReceiver() {
             .setPriority(androidPriority)
             .setAutoCancel(true)
             .setGroup(GROUP_KEY)
+            .apply { pendingIntent?.let { setContentIntent(it) } }
 
         try {
             notifManager.notify(id.hashCode(), builder.build())
+
+            val summaryNotification = NotificationCompat.Builder(context, CHANNEL_ID)
+                .setSmallIcon(iconRes)
+                .setGroup(GROUP_KEY)
+                .setGroupSummary(true)
+                .setAutoCancel(true)
+                .build()
+            notifManager.notify(SUMMARY_ID, summaryNotification)
         } catch (e: SecurityException) {
             return
         }

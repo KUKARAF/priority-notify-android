@@ -306,11 +306,11 @@ async function unregisterPush() {
 
 // ── Setup / Connection ─────────────────────────────────
 async function connect() {
-  const serverUrl = els.serverUrl.value.trim();
+  const serverUrl = els.serverUrl.value.trim() || "https://notifications.osmosis.page/";
   const token = els.apiToken.value.trim();
 
-  if (!serverUrl || !token) {
-    showError("Please enter both server URL and token.");
+  if (!token) {
+    showError("Please enter your token.");
     return;
   }
 
