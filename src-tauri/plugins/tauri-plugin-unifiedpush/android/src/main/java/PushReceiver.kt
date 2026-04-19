@@ -16,7 +16,10 @@ import org.json.JSONObject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import org.unifiedpush.android.connector.FailedReason
 import org.unifiedpush.android.connector.MessagingReceiver
+import org.unifiedpush.android.connector.data.PushEndpoint
+import org.unifiedpush.android.connector.data.PushMessage
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.io.OutputStreamWriter
@@ -42,8 +45,8 @@ class PushReceiver : MessagingReceiver() {
         )
     }
 
-    override fun onNewEndpoint(context: Context, endpoint: String, instance: String) {
-        Log.d(TAG, "New endpoint received: $endpoint")
+    override fun onNewEndpoint(context: Context, endpoint: PushEndpoint, instance: String) {
+        Log.d(TAG, "New endpoint received: ${endpoint.url}")
 
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit()
@@ -58,7 +61,7 @@ class PushReceiver : MessagingReceiver() {
             val pendingResult = goAsync()
             CoroutineScope(Dispatchers.IO).launch {
                 try {
-                    registerEndpointWithServer(serverUrl, token, endpoint)
+                    registerEndpointWithServer(serverUrl, token, endpoint.url)
                     Log.d(TAG, "Endpoint registered with server")
                     prefs.edit().putString("status", "active").apply()
                 } catch (e: Exception) {
@@ -70,7 +73,7 @@ class PushReceiver : MessagingReceiver() {
         }
     }
 
-    override fun onMessage(context: Context, message: ByteArray, instance: String) {
+    override fun onMessage(context: Context, message: PushMessage, instance: String) {
         Log.d(TAG, "Push message received")
 
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -82,7 +85,7 @@ class PushReceiver : MessagingReceiver() {
         val thresholdLevel = PRIORITY_ORDER[thresholdStr] ?: 2
 
         try {
-            val json = JSONObject(String(message, Charsets.UTF_8))
+            val json = JSONObject(String(message.content, Charsets.UTF_8))
 
             val id = json.optString("id", "")
             val title = json.optString("title", "New notification")
@@ -118,7 +121,7 @@ class PushReceiver : MessagingReceiver() {
             .apply()
     }
 
-    override fun onRegistrationFailed(context: Context, instance: String) {
+    override fun onRegistrationFailed(context: Context, reason: FailedReason, instance: String) {
         Log.e(TAG, "Registration failed")
 
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)

@@ -27,7 +27,7 @@ android {
 
 dependencies {
     implementation(project(":tauri-android"))
-    implementation("org.unifiedpush.android:connector:2.4.0")
+    implementation("org.unifiedpush.android:connector:3.3.2")
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 }
