@@ -2,7 +2,7 @@ use crate::api::ApiClient;
 use crate::models::*;
 use crate::sse;
 use std::sync::Mutex;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager};
 use tokio::task::JoinHandle;
 
 /// Shared application state managed by Tauri.
@@ -55,10 +55,10 @@ fn load_from_store(app: &AppHandle, key: &str) -> Option<String> {
 #[tauri::command]
 pub async fn configure(
     app: AppHandle,
-    state: State<'_, AppState>,
     server_url: String,
     token: String,
 ) -> Result<UserResponse, String> {
+    let state = app.state::<AppState>();
     let client = ApiClient::new(&server_url, &token);
     let user = client.get_me().await?;
 
@@ -77,8 +77,8 @@ pub async fn configure(
 #[tauri::command]
 pub async fn load_settings(
     app: AppHandle,
-    state: State<'_, AppState>,
 ) -> Result<Option<(String, String)>, String> {
+    let state = app.state::<AppState>();
     let server_url = load_from_store(&app, "server_url");
     let token = load_from_store(&app, "token");
 
@@ -108,13 +108,14 @@ pub async fn load_setting(app: AppHandle, key: String) -> Result<Option<String>,
 /// Fetch the notification list with optional filters.
 #[tauri::command]
 pub async fn fetch_notifications(
-    state: State<'_, AppState>,
+    app: AppHandle,
     status: Option<String>,
     priority: Option<String>,
     since: Option<String>,
     limit: Option<i64>,
     offset: Option<i64>,
 ) -> Result<PaginatedNotifications, String> {
+    let state = app.state::<AppState>();
     let client = state.api_client()?;
     client
         .list_notifications(
@@ -130,10 +131,11 @@ pub async fn fetch_notifications(
 /// Update a notification's status (e.g. mark as read).
 #[tauri::command]
 pub async fn mark_notification(
-    state: State<'_, AppState>,
+    app: AppHandle,
     id: String,
     status: String,
 ) -> Result<Notification, String> {
+    let state = app.state::<AppState>();
     let client = state.api_client()?;
     client.update_notification(&id, &status).await
 }
@@ -141,9 +143,10 @@ pub async fn mark_notification(
 /// Delete a notification.
 #[tauri::command]
 pub async fn delete_notification(
-    state: State<'_, AppState>,
+    app: AppHandle,
     id: String,
 ) -> Result<(), String> {
+    let state = app.state::<AppState>();
     let client = state.api_client()?;
     client.delete_notification(&id).await
 }
@@ -152,8 +155,9 @@ pub async fn delete_notification(
 #[tauri::command]
 pub async fn start_sse(
     app: AppHandle,
-    state: State<'_, AppState>,
 ) -> Result<(), String> {
+    let state = app.state::<AppState>();
+
     // Stop existing SSE if running
     stop_sse_inner(&state);
 
@@ -164,7 +168,7 @@ pub async fn start_sse(
         return Err("Not configured".to_string());
     }
 
-    let handle = tokio::spawn(sse::run_sse_loop(base_url, token, app));
+    let handle = tokio::spawn(sse::run_sse_loop(base_url, token, app.clone()));
     *state.sse_handle.lock().map_err(|e| e.to_string())? = Some(handle);
 
     Ok(())
@@ -172,7 +176,8 @@ pub async fn start_sse(
 
 /// Stop the SSE listener.
 #[tauri::command]
-pub async fn stop_sse(state: State<'_, AppState>) -> Result<(), String> {
+pub async fn stop_sse(app: AppHandle) -> Result<(), String> {
+    let state = app.state::<AppState>();
     stop_sse_inner(&state);
     Ok(())
 }
