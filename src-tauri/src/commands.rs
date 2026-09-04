@@ -22,8 +22,8 @@ impl AppState {
     }
 
     fn api_client(&self) -> Result<ApiClient, String> {
-        let base_url = self.base_url.lock().unwrap();
-        let token = self.token.lock().unwrap();
+        let base_url = self.base_url.lock().map_err(|e| e.to_string())?;
+        let token = self.token.lock().map_err(|e| e.to_string())?;
         if base_url.is_empty() || token.is_empty() {
             return Err("Not configured. Call configure() first.".to_string());
         }
@@ -63,8 +63,8 @@ pub async fn configure(
     let user = client.get_me().await?;
 
     // Store in runtime state
-    *state.base_url.lock().unwrap() = server_url.clone();
-    *state.token.lock().unwrap() = token.clone();
+    *state.base_url.lock().map_err(|e| e.to_string())? = server_url.clone();
+    *state.token.lock().map_err(|e| e.to_string())? = token.clone();
 
     // Persist to disk
     save_to_store(&app, "server_url", &server_url);
@@ -84,8 +84,8 @@ pub async fn load_settings(
 
     match (server_url, token) {
         (Some(url), Some(tok)) => {
-            *state.base_url.lock().unwrap() = url.clone();
-            *state.token.lock().unwrap() = tok.clone();
+            *state.base_url.lock().map_err(|e| e.to_string())? = url.clone();
+            *state.token.lock().map_err(|e| e.to_string())? = tok.clone();
             Ok(Some((url, tok)))
         }
         _ => Ok(None),
@@ -157,15 +157,15 @@ pub async fn start_sse(
     // Stop existing SSE if running
     stop_sse_inner(&state);
 
-    let base_url = state.base_url.lock().unwrap().clone();
-    let token = state.token.lock().unwrap().clone();
+    let base_url = state.base_url.lock().map_err(|e| e.to_string())?.clone();
+    let token = state.token.lock().map_err(|e| e.to_string())?.clone();
 
     if base_url.is_empty() || token.is_empty() {
         return Err("Not configured".to_string());
     }
 
     let handle = tokio::spawn(sse::run_sse_loop(base_url, token, app));
-    *state.sse_handle.lock().unwrap() = Some(handle);
+    *state.sse_handle.lock().map_err(|e| e.to_string())? = Some(handle);
 
     Ok(())
 }
@@ -178,8 +178,9 @@ pub async fn stop_sse(state: State<'_, AppState>) -> Result<(), String> {
 }
 
 fn stop_sse_inner(state: &AppState) {
-    let mut handle = state.sse_handle.lock().unwrap();
-    if let Some(h) = handle.take() {
-        h.abort();
+    if let Ok(mut handle) = state.sse_handle.lock() {
+        if let Some(h) = handle.take() {
+            h.abort();
+        }
     }
 }

@@ -10,3 +10,12 @@ tauri-plugin = { version = "2", features = ["build"] }
 [dependencies]
 tauri = "2"
 serde = { version = "1", features = ["derive"] }
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+todo = "deny"
+unimplemented = "deny"
+unreachable = "deny"
+indexing_slicing = "deny"

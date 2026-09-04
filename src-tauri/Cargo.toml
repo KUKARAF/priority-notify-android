@@ -21,3 +21,12 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync", "time"
 futures = "0.3"
 log = "0.4"
 tauri-plugin-unifiedpush = { path = "./plugins/tauri-plugin-unifiedpush" }
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+todo = "deny"
+unimplemented = "deny"
+unreachable = "deny"
+indexing_slicing = "deny"

@@ -17,7 +17,7 @@ pub fn run() {
         builder = builder.plugin(tauri_plugin_unifiedpush::init());
     }
 
-    builder
+    if let Err(error) = builder
         .manage(AppState::new())
         .invoke_handler(tauri::generate_handler![
             commands::configure,
@@ -31,5 +31,7 @@ pub fn run() {
             commands::stop_sse,
         ])
         .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+    {
+        log::error!("error while running tauri application: {error}");
+    }
 }
