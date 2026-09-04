@@ -6,8 +6,9 @@ use tauri::{AppHandle, Emitter};
 /// Parse a single SSE field line into (field_name, value).
 fn parse_sse_line(line: &str) -> Option<(&str, &str)> {
     let colon = line.find(':')?;
-    let field = &line[..colon];
-    let value = line[colon + 1..].strip_prefix(' ').unwrap_or(&line[colon + 1..]);
+    let field = line.get(..colon)?;
+    let rest = line.get(colon + 1..)?;
+    let value = rest.strip_prefix(' ').unwrap_or(rest);
     Some((field, value))
 }
 
@@ -52,8 +53,8 @@ async fn connect_and_listen(
         buffer.push_str(&String::from_utf8_lossy(&chunk));
 
         while let Some(newline_pos) = buffer.find('\n') {
-            let line = buffer[..newline_pos].trim_end_matches('\r').to_string();
-            buffer = buffer[newline_pos + 1..].to_string();
+            let line = buffer.get(..newline_pos).unwrap_or("").trim_end_matches('\r').to_string();
+            buffer = buffer.get(newline_pos + 1..).unwrap_or("").to_string();
 
             if line.is_empty() {
                 // End of event — dispatch it

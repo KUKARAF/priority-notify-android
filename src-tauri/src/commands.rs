@@ -2,7 +2,7 @@ use crate::api::ApiClient;
 use crate::models::*;
 use crate::sse;
 use std::sync::Mutex;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager};
 use tokio::task::JoinHandle;
 
 /// Shared application state managed by Tauri.
@@ -22,8 +22,8 @@ impl AppState {
     }
 
     fn api_client(&self) -> Result<ApiClient, String> {
-        let base_url = self.base_url.lock().unwrap();
-        let token = self.token.lock().unwrap();
+        let base_url = self.base_url.lock().map_err(|e| e.to_string())?;
+        let token = self.token.lock().map_err(|e| e.to_string())?;
         if base_url.is_empty() || token.is_empty() {
             return Err("Not configured. Call configure() first.".to_string());
         }
@@ -55,16 +55,16 @@ fn load_from_store(app: &AppHandle, key: &str) -> Option<String> {
 #[tauri::command]
 pub async fn configure(
     app: AppHandle,
-    state: State<'_, AppState>,
     server_url: String,
     token: String,
 ) -> Result<UserResponse, String> {
+    let state = app.state::<AppState>();
     let client = ApiClient::new(&server_url, &token);
     let user = client.get_me().await?;
 
     // Store in runtime state
-    *state.base_url.lock().unwrap() = server_url.clone();
-    *state.token.lock().unwrap() = token.clone();
+    *state.base_url.lock().map_err(|e| e.to_string())? = server_url.clone();
+    *state.token.lock().map_err(|e| e.to_string())? = token.clone();
 
     // Persist to disk
     save_to_store(&app, "server_url", &server_url);
@@ -77,15 +77,15 @@ pub async fn configure(
 #[tauri::command]
 pub async fn load_settings(
     app: AppHandle,
-    state: State<'_, AppState>,
 ) -> Result<Option<(String, String)>, String> {
+    let state = app.state::<AppState>();
     let server_url = load_from_store(&app, "server_url");
     let token = load_from_store(&app, "token");
 
     match (server_url, token) {
         (Some(url), Some(tok)) => {
-            *state.base_url.lock().unwrap() = url.clone();
-            *state.token.lock().unwrap() = tok.clone();
+            *state.base_url.lock().map_err(|e| e.to_string())? = url.clone();
+            *state.token.lock().map_err(|e| e.to_string())? = tok.clone();
             Ok(Some((url, tok)))
         }
         _ => Ok(None),
@@ -108,13 +108,14 @@ pub async fn load_setting(app: AppHandle, key: String) -> Result<Option<String>,
 /// Fetch the notification list with optional filters.
 #[tauri::command]
 pub async fn fetch_notifications(
-    state: State<'_, AppState>,
+    app: AppHandle,
     status: Option<String>,
     priority: Option<String>,
     since: Option<String>,
     limit: Option<i64>,
     offset: Option<i64>,
 ) -> Result<PaginatedNotifications, String> {
+    let state = app.state::<AppState>();
     let client = state.api_client()?;
     client
         .list_notifications(
@@ -130,10 +131,11 @@ pub async fn fetch_notifications(
 /// Update a notification's status (e.g. mark as read).
 #[tauri::command]
 pub async fn mark_notification(
-    state: State<'_, AppState>,
+    app: AppHandle,
     id: String,
     status: String,
 ) -> Result<Notification, String> {
+    let state = app.state::<AppState>();
     let client = state.api_client()?;
     client.update_notification(&id, &status).await
 }
@@ -141,9 +143,10 @@ pub async fn mark_notification(
 /// Delete a notification.
 #[tauri::command]
 pub async fn delete_notification(
-    state: State<'_, AppState>,
+    app: AppHandle,
     id: String,
 ) -> Result<(), String> {
+    let state = app.state::<AppState>();
     let client = state.api_client()?;
     client.delete_notification(&id).await
 }
@@ -152,34 +155,37 @@ pub async fn delete_notification(
 #[tauri::command]
 pub async fn start_sse(
     app: AppHandle,
-    state: State<'_, AppState>,
 ) -> Result<(), String> {
+    let state = app.state::<AppState>();
+
     // Stop existing SSE if running
     stop_sse_inner(&state);
 
-    let base_url = state.base_url.lock().unwrap().clone();
-    let token = state.token.lock().unwrap().clone();
+    let base_url = state.base_url.lock().map_err(|e| e.to_string())?.clone();
+    let token = state.token.lock().map_err(|e| e.to_string())?.clone();
 
     if base_url.is_empty() || token.is_empty() {
         return Err("Not configured".to_string());
     }
 
-    let handle = tokio::spawn(sse::run_sse_loop(base_url, token, app));
-    *state.sse_handle.lock().unwrap() = Some(handle);
+    let handle = tokio::spawn(sse::run_sse_loop(base_url, token, app.clone()));
+    *state.sse_handle.lock().map_err(|e| e.to_string())? = Some(handle);
 
     Ok(())
 }
 
 /// Stop the SSE listener.
 #[tauri::command]
-pub async fn stop_sse(state: State<'_, AppState>) -> Result<(), String> {
+pub async fn stop_sse(app: AppHandle) -> Result<(), String> {
+    let state = app.state::<AppState>();
     stop_sse_inner(&state);
     Ok(())
 }
 
 fn stop_sse_inner(state: &AppState) {
-    let mut handle = state.sse_handle.lock().unwrap();
-    if let Some(h) = handle.take() {
-        h.abort();
+    if let Ok(mut handle) = state.sse_handle.lock() {
+        if let Some(h) = handle.take() {
+            h.abort();
+        }
     }
 }
