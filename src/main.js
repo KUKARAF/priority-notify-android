@@ -249,13 +249,19 @@ async function registerPush() {
   els.pushStatus.textContent = "Registering...";
 
   try {
-    // Save credentials so PushReceiver can use them
+    // Load credentials from store (authoritative) with form input fallback
+    const serverUrl =
+      (await invoke("load_setting", { key: "server_url" })) ||
+      els.serverUrl.value.trim();
+    const token =
+      (await invoke("load_setting", { key: "token" })) ||
+      els.apiToken.value.trim();
     const threshold =
       (await invoke("load_setting", { key: "notif_threshold" })) || "high";
     const sysNotif = await invoke("load_setting", { key: "system_notif" });
     await invoke("plugin:unifiedpush|save_credentials", {
-      serverUrl: els.serverUrl.value.trim(),
-      token: els.apiToken.value.trim(),
+      serverUrl,
+      token,
       notifThreshold: threshold,
       systemNotif: sysNotif !== "false",
     });
